@@ -33,11 +33,7 @@
             </div>
           </div>
           <div class="find-pw-link">
-<<<<<<< HEAD
             <router-link>비밀번호 찾기</router-link>
-=======
-            <router-link to="/">비밀번호 찾기</router-link>
->>>>>>> 710982c44d12d39313f52484b78ee63928789903
           </div>
           <button :disabled="disabledActive" type="submit" class="btn-area">
             로그인

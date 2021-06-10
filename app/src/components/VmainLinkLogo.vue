@@ -1,9 +1,5 @@
 <template>
-<<<<<<< HEAD
-  <router-link :to="'/'">
-=======
   <router-link to="/">
->>>>>>> 710982c44d12d39313f52484b78ee63928789903
     <svg viewBox="0 0 72 24" class="main-link-logo">
       <g transform="translate(3,4)" width="65.3333" height="16">
         <path
