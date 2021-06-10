@@ -152,7 +152,7 @@ sendEmail = async function (req, res) {
         email: req.body.email,
       },
     });
-    const user_uid_intoDB = await result.dataValues.guid;
+    //const user_uid_intoDB = await result.dataValues.guid;
 
     if (result != null) {
       const data = {
@@ -173,7 +173,7 @@ sendEmail = async function (req, res) {
         });
       });
     } else {
-      return Promise.reject({
+      return await Promise.reject({
         status: 409,
         success: false,
         data: {
