@@ -48,6 +48,7 @@ const routes = [
     name: "email-join-verification",
     component: TheEmailJoinVerification,
     meta: { hideHeader: true, hideFooter: true },
+    props: true,
   },
 ];
 

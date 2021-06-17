@@ -17,8 +17,12 @@
                 autofocus
                 autocomplete="on"
                 required
+                @blur="emailTest()"
               />
             </div>
+            <p v-show="subIdActive" class="int-sub">
+              {{ subIdCheckText }}
+            </p>
           </div>
           <div class="int-area-wrap">
             <label for="pw">비밀번호</label>
@@ -31,8 +35,12 @@
                 id="pw"
                 autocomplete="off"
                 required
+                @blur="pwTest()"
               />
             </div>
+            <p v-show="subPwActive" class="int-sub">
+              총 8자 이상, 영문/숫자/특수문자 중 2가지 이상 입력해주세요.
+            </p>
           </div>
           <div class="int-area-wrap">
             <label for="pw-con">비밀번호 확인</label>
@@ -45,14 +53,22 @@
                 id="pw-con"
                 autocomplete="off"
                 required
+                @blur="pwDupTest()"
               />
             </div>
+            <p v-show="subPasswordCheck" class="int-sub">
+              비밀번호가 일치하지 않습니다.
+            </p>
           </div>
-          <router-link :to="{ name: 'email-join-verification' }">
-            <button :disabled="disabledActive" type="submit" class="btn-next">
-              다음
-            </button>
-          </router-link>
+
+          <button
+            :disabled="disabledActive"
+            type="submit"
+            class="btn-next"
+            @click="emailCheckClick"
+          >
+            다음
+          </button>
         </form>
       </div>
     </div>
@@ -61,26 +77,94 @@
 
 <script>
 import VmainLinkLogo from "../components/VmainLinkLogo";
+import { authSendEmail, emailCheckApiCall } from "../assets/api/register";
 export default {
   data() {
     return {
-      id: "",
-      pw: "",
-      pwcon: "",
-      //   necessary: [],
+      id: [],
+      pw: [],
+      pwcon: [],
+      subIdActive: false,
+      subIdCheckText: "이메일 형태가 올바르지 않습니다.",
+      subPwActive: false,
+      subPasswordCheck: false,
     };
   },
   computed: {
     disabledActive: function () {
-      if (this.id > 4 && this.pw > 4 && this.pwcon > 4) {
+      if (
+        this.id.length > 1 &&
+        this.pw.length > 1 &&
+        this.pwcon.length > 1 &&
+        !this.subIdActive &&
+        !this.subPwActive &&
+        !this.subPasswordCheck
+      ) {
         return false;
       } else {
         return true;
       }
     },
+    reqData() {
+      return { email: this.id, pwd: this.pw };
+    },
   },
   components: {
     VmainLinkLogo,
+  },
+  methods: {
+    asyncemailCheckClick() {
+      await this.emailTest();
+      await this.pwTest();
+      await this.pwDupTest();
+      if (
+        this.id.length > 1 &&
+        this.pw.length > 1 &&
+        this.pwcon.length > 1 &&
+        !this.subIdActive &&
+        !this.subPwActive &&
+        !this.subPasswordCheck
+      ) {
+        authSendEmail(this.id).then(() => {
+          this.$router.push({
+            name: "email-join-verification",
+            params: {
+              ...this.reqData,
+            },
+          });
+        });
+      }
+      // this.$store.dispatch("CALL_REGISTER", this.reqData);
+    },
+    async emailTest() {
+      const regExp =
+        /^[0-9a-zA-Z]([-_]?[0-9a-zA-Z])*@[0-9a-zA-Z]([-_]?[0-9a-zA-Z])*\.[a-zA-Z]{2,3}$/i;
+
+      if (this.id.length >= 1) {
+        const resultCheck = await emailCheckApiCall(this.id).then((res) => {
+          return res.data.message;
+        });
+        this.subIdActive = regExp.test(this.id) ? false : true;
+        if (resultCheck == "exist") {
+          this.subIdCheckText = "이메일이 이미 존재합니다.";
+          this.subIdActive = true;
+        } else {
+          this.subIdCheckText = "이메일 형태가 올바르지 않습니다.";
+        }
+      } else this.subIdActive = false;
+    },
+    pwTest() {
+      var regExp = /(?=.*\d)(?=.*[a-zA-ZS]).{8,}/;
+      if (this.pw.length >= 1)
+        this.subPwActive = regExp.test(this.pw) ? false : true;
+      else this.subPwActive = false;
+      this.pwDupTest();
+    },
+    pwDupTest() {
+      if (this.pwcon.length >= 1)
+        this.subPasswordCheck = this.pw === this.pwcon ? false : true;
+      else this.subPwActive = false;
+    },
   },
 };
 </script>
@@ -133,6 +217,8 @@ export default {
 }
 
 .int-area-wrap {
+  position: relative;
+  margin-top: 1rem;
   &:nth-child(2) {
     margin-top: 1rem;
   }
@@ -162,6 +248,12 @@ export default {
       }
     }
   }
+}
+.int-sub {
+  position: absolute;
+  bottom: 0.4rem;
+  font-size: 0.7rem;
+  color: red;
 }
 
 .find-pw-link {
