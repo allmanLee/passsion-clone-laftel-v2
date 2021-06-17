@@ -16,9 +16,152 @@ check = (req, res) => {
   });
 };
 
+//이메일 중복 확인 SQL 컨트롤러
+emailCheck = async function (req, res) {
+  try {
+    const inputEmail = req.query.email;
+    const result = await models.user
+      .findOne({
+        where: {
+          email: inputEmail,
+        },
+      })
+      .catch((err) => {
+        return Promise.reject({
+          status: 403,
+          success: false,
+          data: err,
+        });
+      });
+    if (result == null) {
+      res.status(200).json({
+        success: true,
+        message: "unexist",
+      });
+    } else {
+      res.status(200).json({
+        success: true,
+        message: "exist",
+      });
+    }
+  } catch (err) {
+    res.status(err.status || 500).json({
+      success: false,
+      code: err.status || 500,
+      status: err.data.name,
+      message: err.data.message,
+    });
+  }
+};
+//이메일 중복확인 인증키 전송_이메일 보내기 API
+authSendEmail = async function (req, res) {
+  try {
+    const token = crypto.randomBytes(20).toString("hex"); // token 생성
+
+    // const emailBody = req.body.emailContentHTML;
+    let result = await models.user.findOne({
+      where: {
+        email: req.body.email,
+      },
+    });
+
+    if (result == null) {
+      const data = {
+        auth_code: token,
+        user_email: req.body.email,
+        auth_created: new Date(),
+        auth_ttl: 300, // ttl 값 설정 (5분)
+      };
+
+      await models.auth_email
+        .create(data)
+        .then(function () {
+          console.log("삽입");
+        })
+        .catch((err) => {
+          console.log(err);
+          if (err.name === "SequelizeUniqueConstraintError") {
+            models.auth_email
+              .update(
+                { auth_code: token },
+                { where: { user_email: data.user_email } }
+              )
+              .then(function () {
+                console.log("변경완료");
+              });
+          } else {
+            return Promise.reject({
+              status: 409,
+              success: false,
+              data: {
+                name: err.name,
+                message: err.message,
+              },
+            });
+          }
+        });
+    } else {
+      return await Promise.reject({
+        status: 409,
+        success: false,
+        data: {
+          name: "Email exist",
+          message: "해당 이메일이 이미 존재합니다.",
+        },
+      });
+    }
+
+    let transporter = await nodemailer.createTransport({
+      service: "gmail",
+      host: "smtp.gmail.com",
+      port: 587,
+      secure: false,
+      auth: {
+        user: process.env.NODEMAILER_USER,
+        pass: process.env.NODEMAILER_PASS,
+      },
+    });
+
+    let info = await transporter
+      .sendMail({
+        from: "LAFTEL Team <leeyoujun61@gmail.com>",
+        to: "muenzz119@naver.com",
+        subject: "안녕하세요 Laftel 고객님. 인증키를 발급받았습니다.",
+        html: `고객님의 인증키는 ${token}입니다.`,
+      })
+      .catch((err) => {
+        return Promise.reject({
+          status: 409,
+          success: false,
+          data: {
+            name: "ERR",
+            message: "이메일을 전송하지 못했습니다.",
+          },
+        });
+      });
+
+    res.status(200).json({
+      status: "Success",
+      code: 200,
+      message: "Sent Auth Email",
+      messageId: info.messageId,
+    });
+  } catch (err) {
+    console.log(err);
+    res.status(err.status || 500).json({
+      success: false,
+      code: err.status || 500,
+      status: err.data.name || "ERR",
+      message: err.data.message,
+    });
+  }
+};
+
 //회원가입 SQL 컨트롤러
 register = async function (req, res) {
   try {
+    ////////// 키값 검사하기
+    const authKey = req.body.key;
     const inputPassword = req.body.password;
     const inputEmail = req.body.email;
     const salt = Math.round(new Date().valueOf() * Math.random()) + "";
@@ -26,6 +169,29 @@ register = async function (req, res) {
       .createHash("sha512")
       .update(inputPassword + salt)
       .digest("hex");
+    let searchAuth = await models.auth_email
+      .findOne({ where: { auth_code: authKey } })
+      .catch((err) => {
+        return Promise.reject({
+          status: 500,
+          success: false,
+          data: {
+            name: "ERR-DATABASE ERR",
+            message: "DATABASE ERR",
+          },
+        });
+      });
+    if (searchAuth == null) {
+      return await Promise.reject({
+        status: 409,
+        success: false,
+        data: {
+          name: "Invalid Key Value",
+          message: "올바르지 않는 키값입니다.",
+        },
+      });
+    }
+    //////////
 
     await models.user
       .create({
@@ -43,6 +209,8 @@ register = async function (req, res) {
           data: err,
         });
       });
+    ////////// auth 삭제
+    await models.auth_email.destroy({ where: { auth_code: authKey } });
 
     res.status(200).json({
       success: true,
@@ -59,6 +227,7 @@ register = async function (req, res) {
     });
   }
 };
+
 //로그인 SQL 컨트롤러
 login = async function (req, res) {
   try {
@@ -152,9 +321,9 @@ sendEmail = async function (req, res) {
         email: req.body.email,
       },
     });
-    //const user_uid_intoDB = await result.dataValues.guid;
 
     if (result != null) {
+      const user_uid_intoDB = await result.dataValues.guid;
       const data = {
         auth_key: token,
         user_uid: user_uid_intoDB,
@@ -163,14 +332,25 @@ sendEmail = async function (req, res) {
       };
 
       await models.auth.create(data).catch((err) => {
-        return Promise.reject({
-          status: 409,
-          success: false,
-          data: {
-            name: "Already forwarded the contents to that email.",
-            message: "이미 전송하였습니다.",
-          },
-        });
+        if (err.name === "SequelizeUniqueConstraintError") {
+          return Promise.reject({
+            status: 409,
+            success: false,
+            data: {
+              name: err.name,
+              message: "이미 전송하였습니다.",
+            },
+          });
+        } else {
+          return Promise.reject({
+            status: 409,
+            success: false,
+            data: {
+              name: err.name,
+              message: err.message,
+            },
+          });
+        }
       });
     } else {
       return await Promise.reject({
@@ -302,8 +482,10 @@ updatePwd = async function (req, res) {
 module.exports = {
   login,
   register,
+  authSendEmail,
   sendEmail,
   updatePwd,
+  emailCheck,
   check,
 };
 

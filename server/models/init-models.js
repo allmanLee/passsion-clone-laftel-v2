@@ -2,6 +2,7 @@ var DataTypes = require("sequelize").DataTypes;
 var _animation_board = require("./animation_board");
 var _animation_info = require("./animation_info");
 var _auth = require("./auth");
+var _auth_email = require("./auth_email");
 var _user = require("./user");
 var _user_nickname = require("./user_nickname");
 
@@ -9,6 +10,7 @@ function initModels(sequelize) {
   var animation_board = _animation_board(sequelize, DataTypes);
   var animation_info = _animation_info(sequelize, DataTypes);
   var auth = _auth(sequelize, DataTypes);
+  var auth_email = _auth_email(sequelize, DataTypes);
   var user = _user(sequelize, DataTypes);
   var user_nickname = _user_nickname(sequelize, DataTypes);
 
@@ -23,6 +25,7 @@ function initModels(sequelize) {
     animation_board,
     animation_info,
     auth,
+    auth_email,
     user,
     user_nickname,
   };
