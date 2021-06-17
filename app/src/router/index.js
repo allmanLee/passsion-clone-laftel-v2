@@ -41,6 +41,7 @@ const routes = [
     name: "email-join-verification",
     component: () => import("../views/TheEmailJoinVerification.vue"),
     meta: { hideHeader: true, hideFooter: true },
+    props: true,
   },
 ];
 

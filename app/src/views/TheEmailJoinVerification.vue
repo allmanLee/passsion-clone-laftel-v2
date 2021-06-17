@@ -5,7 +5,7 @@
       <div class="email-join-verification-box">
         <h3>이메일 인증</h3>
         <form class="email-join-verification">
-          <div class="user-join-email">{{ UserEmail }}</div>
+          <div class="user-join-email">{{ reqEmail }}</div>
           <p class="notice-text">
             위 이메일로 인증코드를 보냈습니다.<br />
             이메일로 받은 인증코드 6자를 입력해주세요.
@@ -26,10 +26,16 @@
           <button class="btn-code-again" type="button">
             인증코드 다시 보내기
           </button>
-
-          <button :disabled="code.length < 6" type="submit" class="btn-next">
-            완료
-          </button>
+          <router-link :to="{ name: 'main' }">
+            <button
+              :disabled="code.length < 6"
+              type="submit"
+              class="btn-next"
+              @click="registerSubmitClick()"
+            >
+              완료
+            </button>
+          </router-link>
         </form>
       </div>
       <a class="different-email-verification-link" href="#"
@@ -41,15 +47,37 @@
 
 <script>
 import VmainLinkLogo from "../components/VmainLinkLogo";
+import { registerApiCall } from "../assets/api/register";
 export default {
   data() {
     return {
-      UserEmail: "root_user@gmail.com",
       code: [],
     };
   },
+
+  props: ["email", "pwd"],
   components: {
     VmainLinkLogo,
+  },
+  computed: {
+    reqData() {
+      return { email: this.email, pwd: this.pwd, key: this.code };
+    },
+    reqEmail() {
+      return this.reqData.email;
+    },
+  },
+  methods: {
+    registerSubmitClick() {
+      registerApiCall(this.reqData).then(function () {
+        console.log("성공");
+      });
+    },
+  },
+  mounted() {
+    console.log(this.email);
+    console.log(this.pw);
+    // console.log(this.$route.params.pw);
   },
 };
 </script>
